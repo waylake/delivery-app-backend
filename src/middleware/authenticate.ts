@@ -2,8 +2,11 @@ import { Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { IUserRequest, JwtPayload } from "../types";
 import { AppError } from "../utils/appError";
+import { AuthService } from "../services/authService";
 
-export const authenticate = (
+const authService = new AuthService();
+
+export const authenticate = async (
   req: IUserRequest,
   _res: Response,
   next: NextFunction,
@@ -12,11 +15,12 @@ export const authenticate = (
     const token = req.headers.authorization?.replace("Bearer ", "");
 
     if (!token) {
-      throw new AppError("Authentication token missing", 401);
+      throw new AppError("Authentication failed", 401);
     }
 
-    if (!process.env.JWT_SECRET) {
-      throw new AppError("JWT secret not configured", 500);
+    const isBlacklisted = await authService.isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      throw new AppError("Token is blacklisted", 401);
     }
 
     const decoded = jwt.verify(
@@ -26,11 +30,7 @@ export const authenticate = (
     req.user = decoded;
     next();
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      next(new AppError("Invalid authentication token", 401));
-    } else {
-      next(new AppError("Authentication failed", 401));
-    }
+    next(new AppError("Authentication failed", 401));
   }
 };
 

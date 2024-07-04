@@ -3,6 +3,7 @@ import { IUser } from "../models/User";
 import User from "../models/User";
 import { CreateUserDto, LoginUserDto, JwtPayload } from "../types";
 import { AppError } from "../utils/appError";
+import cache from "memory-cache";
 
 export class AuthService {
   public async register(userData: CreateUserDto): Promise<IUser> {
@@ -30,15 +31,24 @@ export class AuthService {
     return { token, user };
   }
 
+  public async logout(token: string): Promise<void> {
+    cache.put(token, "blacklisted", 3600 * 1000);
+  }
+
   private generateToken(user: IUser): string {
     const payload: JwtPayload = {
-      id: user._id.toString(), // 여기서 .toString() 메서드를 사용하여 string 타입으로 변환
+      id: user._id.toString(),
       email: user.email,
       role: user.role,
     };
 
     return jwt.sign(payload, process.env.JWT_SECRET as string, {
-      expiresIn: "1d",
+      expiresIn: "1h",
     });
+  }
+
+  public async isTokenBlacklisted(token: string): Promise<boolean> {
+    const result = cache.get(token);
+    return result === "blacklisted";
   }
 }

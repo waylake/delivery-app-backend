@@ -20,4 +20,10 @@ router.put(
   userController.updateProfile.bind(userController),
 );
 
+router.post(
+  "/logout",
+  authenticate,
+  userController.logout.bind(userController),
+);
+
 export default router;
